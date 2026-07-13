@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>验证</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --blue: #4285f4;
+    --blue-d: #3367d6;
+    --text: #202124;
+    --text-2: #5f6368;
+    --text-3: #9aa0a6;
+    --border: #dcdcdc;
+    --bg: #f0f2f5;
+  }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--text);
+  }
+  .wrap { width: 100%; max-width: 390px; position: relative; }
+
+  /* 语言切换 */
+  .lang-switch {
+    position: absolute;
+    top: -36px; right: 0;
+    display: flex;
+    gap: 4px;
+  }
+  .lang-btn {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .lang-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .lang-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* 复选框卡片 */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .card.hidden { display: none; }
+  .checkbox {
+    width: 28px; height: 28px;
+    border: 2px solid #9aa0a6;
+    border-radius: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .2s;
+  }
+  .checkbox:hover { border-color: var(--blue); }
+  .checkbox.loading {
+    border: 3px solid #e8f0fe;
+    border-top: 3px solid var(--blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    cursor: default;
+  }
+  .checkbox.checked { border-color: var(--blue); background: var(--blue); }
+  .checkbox.checked::after {
+    content: '';
+    width: 14px; height: 8px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px,-1px);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .label { font-size: 15px; flex: 1; }
+  .brand {
+    font-size: 11px; color: var(--text-2); text-align: right; line-height: 1.4;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  }
+  .brand .logo { display: flex; align-items: center; gap: 4px; font-weight: 500; }
+  .brand .dot { width: 6px; height: 6px; border-radius: 50%; background: #34a853; }
+  .brand .meta { font-size: 10px; color: var(--text-3); }
+
+  /* 挑战面板 */
+  .challenge {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    display: none;
+  }
+  .challenge.show { display: block; animation: fadeIn .25s; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(-4px);} to {opacity:1; transform:none;} }
+  .ch-head { padding: 14px 18px 12px; }
+  .ch-title { font-size: 14px; font-weight: 500; }
+  .ch-sub { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    padding: 0 12px 12px;
+  }
+  .tile {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    background: #eef1f5;
+    transition: outline .12s;
+    outline: 3px solid transparent;
+    outline-offset: -3px;
+  }
+  .tile:hover { outline-color: rgba(66,133,244,0.4); }
+  .tile.selected { outline-color: var(--blue); }
+  .tile .pic {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 38px;
+  }
+  .ch-foot {
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #f0f0f0;
+  }
+  .foot-left { display: flex; gap: 4px; }
+  .icon-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-2); cursor: pointer; border-radius: 4px;
+    font-size: 18px;
+  }
+  .icon-btn:hover { background: #f1f3f4; }
+  .verify-btn {
+    background: var(--blue); color: #fff;
+    border: none; border-radius: 4px;
+    padding: 8px 22px; font-size: 14px; font-weight: 500;
+    cursor: pointer;
+  }
+  .verify-btn:hover { background: var(--blue-d); }
+
+  /* 滑块拼图 */
+  .slider-area { padding: 0 18px 14px; }
+  .puzzle-img {
+    position: relative;
+    height: 180px;
+    background: linear-gradient(135deg, #a8c0ff 0%, #3f6bfd 100%);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .puzzle-img .deco {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 60px; opacity: 0.5;
+  }
+  .puzzle-piece {
+    position: absolute;
+    width: 44px; height: 44px;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0;
+    background: rgba(255,255,255,0.9);
+    border: 2px solid #fff;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    z-index: 2;
+  }
+  .puzzle-slot {
+    position: absolute;
+    width: 44px; height: 44px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.2);
+    border: 2px dashed rgba(255,255,255,0.5);
+    border-radius: 4px;
+    z-index: 1;
+  }
+  .slider-track {
+    position: relative;
+    height: 40px;
+    background: #f1f3f4;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .slider-fill {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #e8f0fe, #d2e3fc);
+    border-radius: 20px;
+  }
+  .slider-handle {
+    position: absolute;
+    left: 0; top: 0;
+    width: 40px; height: 40px;
+    background: var(--blue);
+    border-radius: 50%;
+    cursor: grab;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px;
+    z-index: 3;
+    user-select: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .slider-handle:active { cursor: grabbing; }
+  .slider-text {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 13px;
+    color: var(--text-3);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* 旋转验证 */
+  .rotate-area { padding: 0 18px 14px; display: flex; flex-direction: column; align-items: center; }
+  .rotate-img {
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffd89b 0%, #fc6076 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 70px;
+    margin-bottom: 14px;
+    transition: transform .1s;
+    position: relative;
+  }
+  .rotate-img .pointer {
+    position: absolute;
+    top: -8px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 12px solid #fff;
+  }
+  .rotate-controls { display: flex; gap: 10px; align-items: center; }
+  .rotate-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text-2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .rotate-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* 顶部提示 */
+  .toast {
+    position: fixed;
+    top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-70px);
+    background: #fff;
+    color: #3c4043;
+    border: 1px solid var(--border);
+    padding: 10px 18px;
+    border-radius: 4px;
+    font-size: 13px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    opacity: 0;
+    transition: all .3s cubic-bezier(.2,.8,.2,1);
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  .step-indicator {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-3);
+    display: none;
+  }
+  .step-indicator.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="lang-switch">
+    <button class="lang-btn" data-lang="zh">中文</button>
+    <button class="lang-btn" data-lang="en">EN</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="checkbox" id="box"></div>
+    <div class="label" id="label"></div>
+    <div class="brand">
+      <div class="logo"><span class="dot"></span><span id="brandName"></span></div>
+      <div class="meta" id="brandMeta"></div>
+    </div>
+  </div>
+
+  <div class="challenge" id="challenge">
+    <div class="ch-head">
+      <div class="ch-title" id="chTitle"></div>
+      <div class="ch-sub" id="chSub"></div>
+    </div>
+
+    <!-- 图片选择 -->
+    <div id="imagePanel">
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- 滑块拼图 -->
+    <div id="sliderPanel" style="display:none;">
+      <div class="slider-area">
+        <div class="puzzle-img" id="puzzleImg">
+          <div class="deco" id="puzzleDeco">🖼️</div>
+          <div class="puzzle-slot" id="puzzleSlot"></div>
+          <div class="puzzle-piece" id="puzzlePiece">🧩</div>
+        </div>
+        <div class="slider-track" id="sliderTrack">
+          <div class="slider-fill" id="sliderFill"></div>
+          <div class="slider-text" id="sliderText"></div>
+          <div class="slider-handle" id="sliderHandle">→</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 旋转验证 -->
+    <div id="rotatePanel" style="display:none;">
+      <div class="rotate-area">
+        <div class="rotate-img" id="rotateImg">
+          <div class="pointer"></div>
+          <span id="rotateIcon">🌍</span>
+        </div>
+        <div class="rotate-controls">
+          <button class="rotate-btn" id="rotLeft">↺</button>
+          <button class="rotate-btn" id="rotRight">↻</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ch-foot">
+      <div class="foot-left">
+        <div class="icon-btn" id="reload" title="">↻</div>
+        <div class="icon-btn" id="skip" title="">⤳</div>
+      </div>
+      <button class="verify-btn" id="verify"></button>
+    </div>
+  </div>
+
+  <div class="step-indicator" id="stepInd"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ i18n ============
+const I18N = {
+  zh: {
+    label: '我不是机器人',
+    verifying: '验证中…',
+    completeBelow: '请完成下方验证',
+    brand: '验证码',
+    meta: '隐私 · 条款',
+    imgSub: '如果不存在，请点击跳过',
+    sliderSub: '拖动滑块完成拼图',
+    rotateSub: '旋转图片至正确方向',
+    skip: '跳过',
+    verify: '验证',
+    slideHint: '向右拖动滑块',
+    selectFirst: '请先选择图片',
+    dragFirst: '请先拖动滑块',
+    rotateFirst: '请先旋转图片',
+    failures: ['请重试', '验证未通过，请重试', '请再检查一遍后重试', '选择有误，请重试', '请重新选择并验证'],
+    sliderFail: ['拼图未对齐，请重试', '请重新拖动滑块'],
+    rotateFail: ['方向不正确，请重试', '请重新旋转至正确角度'],
+    success: '验证通过',
+    refreshing: '正在刷新…',
+    step: (n) => `步骤 ${n} / 3`,
+    themes: [
+      { name: '红绿灯', items: ['🚦','🚗','🏠','🌳','🚦','🏢','🚗','🚦','🌳'] },
+      { name: '人行横道', items: ['🚗','🚶','🏠','🛣️','🚦','🚗','🛣️','🏠','🚶'] },
+      { name: '消防栓', items: ['🚗','🏠','🚒','🌳','🚗','🏢','🚦','🚗','🌳'] },
+      { name: '公交车', items: ['🚗','🏠','🚌','🌳','🚗','🏢','🚦','🚌','🌳'] },
+      { name: '自行车', items: ['🚗','🚲','🏠','🌳','🚲','🏢','🚦','🚗','🚲'] },
+      { name: '楼梯', items: ['🚗','🏠','🪜','🌳','🪜','🏢','🚦','🪜','🌳'] },
+      { name: '长椅', items: ['🪑','🏠','🌳','🚗','🪑','🏢','🚦','🌳','🪑'] },
+      { name: '汽车', items: ['🚗','🏠','🚗','🌳','🚗','🏢','🚦','🚗','🌳'] },
+    ],
+    imgPrompt: (n) => `选择所有包含${n}的图片`,
+    rotateHint: '点击按钮旋转图片',
+  },
+  en: {
+    label: "I'm not a robot",
+    verifying: 'Verifying…',
+    completeBelow: 'Please complete the verification below',
+    brand: 'CAPTCHA',
+    meta: 'Privacy · Terms',
+    imgSub: 'If none, click skip',
+    sliderSub: 'Drag the slider to complete the puzzle',
+    rotateSub: 'Rotate the image to the correct orientation',
+    skip: 'Skip',
+    verify: 'Verify',
+    slideHint: 'Slide right',
+    selectFirst: 'Please select an image first',
+    dragFirst: 'Please drag the slider first',
+    rotateFirst: 'Please rotate the image first',
+    failures: ['Please try again', 'Verification failed, please retry', 'Please double-check and try again', 'Incorrect selection, please retry', 'Please reselect and verify'],
+    sliderFail: ['Puzzle not aligned, please retry', 'Please drag the slider again'],
+    rotateFail: ['Incorrect orientation, please retry', 'Please rotate to the correct angle'],
+    success: 'Verification passed',
+    refreshing: 'Refreshing…',
+    step: (n) => `Step ${n} of 3`,
+    themes: [
+      { name: 'traffic lights', items: ['🚦','🚗','🏠','🌳','🚦','🏢','🚗','🚦','🌳'] },
+      { name: 'crosswalks', items: ['🚗','🚶','🏠','🛣️','🚦','🚗','🛣️','🏠','🚶'] },
+      { name: 'fire hydrants', items: ['🚗','🏠','🚒','🌳','🚗','🏢','🚦','🚗','🌳'] },
+      { name: 'buses', items: ['🚗','🏠','🚌','🌳','🚗','🏢','🚦','🚌','🌳'] },
+      { name: 'bicycles', items: ['🚗','🚲','🏠','🌳','🚲','🏢','🚦','🚗','🚲'] },
+      { name: 'stairs', items: ['🚗','🏠','🪜','🌳','🪜','🏢','🚦','🪜','🌳'] },
+      { name: 'benches', items: ['🪑','🏠','🌳','🚗','🪑','🏢','🚦','🌳','🪑'] },
+      { name: 'cars', items: ['🚗','🏠','🚗','🌳','🚗','🏢','🚦','🚗','🌳'] },
+    ],
+    imgPrompt: (n) => `Select all images containing ${n}`,
+    rotateHint: 'Click buttons to rotate the image',
+  }
+};
+
+// ============ 状态 ============
+let lang = 'zh';
+let step = 0; // 0=checkbox, 1=image, 2=slider, 3=rotate
+let selected = new Set();
+let sliderDragged = false;
+let sliderPos = 0;
+let rotateAngle = 0;
+const SUCCESS_RATE = 0.35;
+
+// ============ DOM ============
+const $ = (id) => document.getElementById(id);
+const box = $('box'), label = $('label'), card = $('card'), challenge = $('challenge');
+const chTitle = $('chTitle'), chSub = $('chSub'), grid = $('grid');
+const reload = $('reload'), skip = $('skip'), verifyBtn = $('verify'), toast = $('toast');
+const stepInd = $('stepInd');
+const imagePanel = $('imagePanel'), sliderPanel = $('sliderPanel'), rotatePanel = $('rotatePanel');
+
+// ============ 语言 ============
+function detectLang() {
+  const bl = (navigator.language || navigator.userLanguage || 'zh').toLowerCase();
+  return bl.startsWith('zh') ? 'zh' : 'en';
+}
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en';
+  const t = I18N[l];
+  if (!challenge.classList.contains('show')) {
+    label.textContent = t.label;
+  }
+  $('brandName').textContent = t.brand;
+  $('brandMeta').textContent = t.meta;
+  $('sliderText').textContent = t.slideHint;
+  // 更新按钮状态
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === l);
+  });
+  // 更新当前挑战面板文案
+  updateChallengeText();
+}
+
+// ============ 工具 ============
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ============ 挑战面板切换 ============
+function showPanel(name) {
+  imagePanel.style.display = name === 'image' ? '' : 'none';
+  sliderPanel.style.display = name === 'slider' ? '' : 'none';
+  rotatePanel.style.display = name === 'rotate' ? '' : 'none';
+}
+
+function updateChallengeText() {
+  const t = I18N[lang];
+  if (step === 1) {
+    chTitle.textContent = currentImgTitle;
+    chSub.textContent = t.imgSub;
+  } else if (step === 2) {
+    chTitle.textContent = t.sliderSub;
+    chSub.textContent = t.slideHint;
+  } else if (step === 3) {
+    chTitle.textContent = t.rotateSub;
+    chSub.textContent = t.rotateHint;
+  }
+  verifyBtn.textContent = t.verify;
+  if (step > 0) {
+    stepInd.textContent = t.step(step);
+    stepInd.classList.add('show');
+  } else {
+    stepInd.classList.remove('show');
+  }
+}
+
+// ============ 图片挑战 ============
+let currentImgTitle = '';
+function loadImageChallenge() {
+  showPanel('image');
+  selected.clear();
+  const t = I18N[lang];
+  const theme = pick(t.themes);
+  currentImgTitle = t.imgPrompt(theme.name);
+  grid.innerHTML = '';
+  const items = shuffle(theme.items);
+  items.forEach((em, i) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.innerHTML = `<div class="pic">${em}</div>`;
+    tile.addEventListener('click', () => {
+      if (selected.has(i)) { selected.delete(i); tile.classList.remove('selected'); }
+      else { selected.add(i); tile.classList.add('selected'); }
+    });
+    grid.appendChild(tile);
+  });
+  updateChallengeText();
+}
+
+// ============ 滑块拼图 ============
+function loadSliderChallenge() {
+  showPanel('slider');
+  sliderDragged = false;
+  sliderPos = 0;
+  $('sliderFill').style.width = '0px';
+  $('sliderHandle').style.left = '0px';
+  $('sliderText').style.opacity = '1';
+  // 随机拼图槽位置
+  const trackW = $('puzzleImg').offsetWidth - 44;
+  $('puzzleSlot').style.left = (40 + Math.random() * (trackW - 80)) + 'px';
+  // 随机装饰图标
+  const decos = ['🏔️','🌊','🌸','🌙','⭐','🌈','🏞️','🎨'];
+  $('puzzleDeco').textContent = pick(decos);
+  updateChallengeText();
+  initSlider();
+}
+
+function initSlider() {
+  const handle = $('sliderHandle');
+  const fill = $('sliderFill');
+  const track = $('sliderTrack');
+  const text = $('sliderText');
+  let dragging = false;
+  let startX = 0;
+  let maxLeft = track.offsetWidth - 40;
+
+  // 移除旧监听
+  const newHandle = handle.cloneNode(true);
+  handle.parentNode.replaceChild(newHandle, handle);
+
+  const onDown = (e) => {
+    dragging = true;
+    startX = (e.touches ? e.touches[0].clientX : e.clientX) - newHandle.offsetLeft;
+    newHandle.style.cursor = 'grabbing';
+    text.style.opacity = '0';
+    e.preventDefault();
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    let x = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
+    x = Math.max(0, Math.min(x, maxLeft));
+    sliderPos = x;
+    newHandle.style.left = x + 'px';
+    fill.style.width = (x + 40) + 'px';
+    // 移动拼图块
+    $('puzzlePiece').style.left = x + 'px';
+    if (x > 5) sliderDragged = true;
+  };
+  const onUp = () => {
+    dragging = false;
+    newHandle.style.cursor = 'grab';
+  };
+  newHandle.addEventListener('mousedown', onDown);
+  newHandle.addEventListener('touchstart', onDown, { passive: false });
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+}
+
+// ============ 旋转验证 ============
+function loadRotateChallenge() {
+  showPanel('rotate');
+  rotateAngle = Math.floor(Math.random() * 7 + 1) * 45; // 初始随机角度
+  $('rotateImg').style.transform = `rotate(${rotateAngle}deg)`;
+  const icons = ['🌍','🌐','🎡','🎯','🍀','🌻'];
+  $('rotateIcon').textContent = pick(icons);
+  updateChallengeText();
+  initRotate();
+}
+
+function initRotate() {
+  const img = $('rotateImg');
+  const left = $('rotLeft');
+  const right = $('rotRight');
+  // 克隆替换以清除旧监听
+  const nl = left.cloneNode(true);
+  const nr = right.cloneNode(true);
+  left.parentNode.replaceChild(nl, left);
+  right.parentNode.replaceChild(nr, right);
+  nl.addEventListener('click', () => {
+    rotateAngle = (rotateAngle - 15 + 360) % 360;
+    img.style.transform = `rotate(${rotateAngle}deg)`;
+  });
+  nr.addEventListener('click', () => {
+    rotateAngle = (rotateAngle + 15) % 360;
+    img.style.transform = `rotate(${rotateAngle}deg)`;
+  });
+}
+
+// ============ 流程控制 ============
+function nextStep() {
+  step++;
+  if (step === 1) {
+    card.classList.add('hidden');
+    challenge.classList.add('show');
+    loadImageChallenge();
+  } else if (step === 2) {
+    loadSliderChallenge();
+  } else if (step === 3) {
+    loadRotateChallenge();
+  } else {
+    // 三步都"完成"后，回到第一步图片选择，无限循环
+    step = 1;
+    loadImageChallenge();
+  }
+}
+
+function handleVerify() {
+  const t = I18N[lang];
+  if (step === 1) {
+    if (selected.size === 0) { showToast(t.selectFirst); return; }
+    if (Math.random() < SUCCESS_RATE) { nextStep(); return; }
+    showToast(pick(t.failures));
+    setTimeout(loadImageChallenge, 500);
+  } else if (step === 2) {
+    if (!sliderDragged) { showToast(t.dragFirst); return; }
+    if (Math.random() < SUCCESS_RATE) { nextStep(); return; }
+    showToast(pick(t.sliderFail));
+    setTimeout(loadSliderChallenge, 500);
+  } else if (step === 3) {
+    if (Math.random() < SUCCESS_RATE) {
+      showToast(t.success);
+      setTimeout(() => { showToast(t.refreshing); }, 900);
+      setTimeout(() => location.reload(), 2000);
+      return;
+    }
+    showToast(pick(t.rotateFail));
+    setTimeout(loadRotateChallenge, 500);
+  }
+}
+
+// ============ 事件绑定 ============
+box.addEventListener('click', () => {
+  if (box.classList.contains('loading') || box.classList.contains('checked')) return;
+  box.classList.add('loading');
+  label.textContent = I18N[lang].verifying;
+  setTimeout(() => {
+    box.classList.remove('loading');
+    box.classList.add('checked');
+    label.textContent = I18N[lang].completeBelow;
+    setTimeout(() => {
+      step = 0;
+      nextStep();
+    }, 400);
+  }, 1100);
+});
+
+reload.addEventListener('click', () => {
+  if (step === 1) loadImageChallenge();
+  else if (step === 2) loadSliderChallenge();
+  else if (step === 3) loadRotateChallenge();
+});
+
+skip.addEventListener('click', () => {
+  if (step === 1) loadImageChallenge();
+  else nextStep();
+});
+
+verifyBtn.addEventListener('click', handleVerify);
+
+// 语言切换
+document.querySelectorAll('.lang-btn').forEach(b => {
+  b.addEventListener('click', () => setLang(b.dataset.lang));
+});
+
+// ============ 初始化 ============
+lang = detectLang();
+setLang(lang);
+</script>
+</body>
+</html>
